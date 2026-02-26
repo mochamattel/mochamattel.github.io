@@ -22,6 +22,8 @@ import {
   orderBy,
   addDoc,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
   type DocumentData,
   type QuerySnapshot,
   type Unsubscribe as FsUnsubscribe
@@ -131,6 +133,21 @@ export const getUserProfile = async (uid: string) => {
 
 export const updateUserProfile = async (uid: string, data: Partial<DocumentData>) => {
   await updateDoc(doc(db, 'users', uid), data);
+};
+
+// Atomic array operations for library (order-independent, no race conditions)
+export const addBookToLibrary = async (uid: string, bookId: string) => {
+  await updateDoc(doc(db, 'users', uid), {
+    ownedBookIds: arrayUnion(bookId),
+    purchasedBookIds: arrayUnion(bookId),
+  });
+};
+
+export const removeBookFromLibrary = async (uid: string, bookId: string) => {
+  await updateDoc(doc(db, 'users', uid), {
+    ownedBookIds: arrayRemove(bookId),
+    purchasedBookIds: arrayRemove(bookId),
+  });
 };
 
 export const changePassword = async (newPassword: string) => {

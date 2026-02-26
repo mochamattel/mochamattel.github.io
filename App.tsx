@@ -1714,10 +1714,7 @@ const App: React.FC = () => {
     setUserBookData(prev => ({ ...prev, [user.username]: updatedUd }));
     showToast('Book saved to your library!', 'bookmark');
     if (firebaseUid) {
-      fbService.updateUserProfile(firebaseUid, {
-        ownedBookIds: newOwned,
-        purchasedBookIds: newPurchased,
-      }).catch(console.error);
+      fbService.addBookToLibrary(firebaseUid, bookId).catch(console.error);
     }
   };
 
@@ -1738,10 +1735,7 @@ const App: React.FC = () => {
     setUserBookData(prev => ({ ...prev, [user.username]: updatedUd }));
     showToast('Book removed from your library.', 'bookmark_remove');
     if (firebaseUid) {
-      fbService.updateUserProfile(firebaseUid, {
-        ownedBookIds: newOwned,
-        purchasedBookIds: newPurchased,
-      }).catch(console.error);
+      fbService.removeBookFromLibrary(firebaseUid, bookId).catch(console.error);
     }
   };
 
@@ -2663,10 +2657,7 @@ const handleSpinWheel = () => {
           return updated;
         });
         if (firebaseUid) {
-          fbService.updateUserProfile(firebaseUid, {
-            ownedBookIds: newOwned,
-            purchasedBookIds: newPurchased,
-          }).catch(console.error);
+          fbService.addBookToLibrary(firebaseUid, bookId).catch(console.error);
         }
       }}
       showToast={showToast}
