@@ -906,10 +906,8 @@ const App: React.FC = () => {
         lastMembershipRewardDate: user.lastMembershipRewardDate || null,
         dailyChaptersPublished: user.dailyChaptersPublished || 0,
         lastChapterPublishReset: user.lastChapterPublishReset || 0,
-        // Book data
+        // Book data (ownedBookIds/purchasedBookIds managed atomically via arrayUnion/arrayRemove)
         ...(ud ? {
-          ownedBookIds: ud.ownedBookIds || [],
-          purchasedBookIds: (ud as any).purchasedBookIds || [],
           bookProgress: ud.bookProgress || {},
         } : {}),
         // Avatar
@@ -960,7 +958,7 @@ const App: React.FC = () => {
         lastClaimedPoints: lastClaimedPoints || null,
         membershipStartDate: user.membershipStartDate || null, lastMembershipRewardDate: user.lastMembershipRewardDate || null,
         dailyChaptersPublished: user.dailyChaptersPublished || 0, lastChapterPublishReset: user.lastChapterPublishReset || 0,
-        ...(ud ? { ownedBookIds: ud.ownedBookIds || [], purchasedBookIds: (ud as any).purchasedBookIds || [], bookProgress: ud.bookProgress || {} } : {}),
+        ...(ud ? { bookProgress: ud.bookProgress || {} } : {}),
         ...(cfg ? { avatarConfig: cfg } : {}), ...(items ? { unlockedItems: items } : {}),
         blockedUsers: [...blockedUsers], ...(activity ? { readingActivity: activity } : {}), coupons, cart: cartData,
       };
