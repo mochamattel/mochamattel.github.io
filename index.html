@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Minglee24</title>
+    <title>MainWRLD</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -34,7 +34,12 @@
             padding: 0;
             overflow: hidden;
             -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
             user-select: none;
+        }
+        input, textarea, [contenteditable="true"], [contenteditable] {
+            -webkit-user-select: text;
+            user-select: text;
         }
         .no-scrollbar::-webkit-scrollbar {
           display: none;

@@ -257,21 +257,21 @@ const SKIN_TONE_COLORS: Record<string, string> = {
 };
 
 const DEFAULT_HAIR_POSITIONS: Record<string, { width: string; left: string; top: string }> = {
-  W_Hair_1:    { width: '30.5%', left: '34.5%', top: '-2.5%' },
-  W_Hair_2:    { width: '32%', left: '34%', top: '-1%' },
-  W_Hair_2_v1: { width: '32%', left: '34%', top: '-1%' },
-  W_Hair_3:    { width: '33.5%', left: '33%', top: '-3.5%' },
-  W_Hair_4:    { width: '38%', left: '31.5%', top: '-3%' },
-  W_Hair_4_v1: { width: '38%', left: '31.5%', top: '-3%' },
-  W_Hair_5:    { width: '37.5%', left: '31.5%', top: '-1%' },
-  W_Hair_5_v1: { width: '37.5%', left: '31.5%', top: '-1%' },
-  M_Hair_1:    { width: '28.5%', left: '35.5%', top: '-5%' },
-  M_Hair_2:    { width: '37%', left: '31.5%', top: '-5%' },
-  M_Hair_3:    { width: '33.5%', left: '33.5%', top: '-4%' },
-  M_Hair_4:    { width: '28%', left: '36%', top: '-3%' },
-  M_Hair_4_v1: { width: '28%', left: '36%', top: '-3%' },
-  M_Hair_5:    { width: '33%', left: '34%', top: '-2%' },
-  M_Hair_5_v1: { width: '33%', left: '34%', top: '-2%' },
+  W_Hair_1:    { width: '33%', left: '33.5%', top: '-2.5%' },
+  W_Hair_2:    { width: '35.5%', left: '32.5%', top: '-1.5%' },
+  W_Hair_2_v1: { width: '35.5%', left: '32.5%', top: '-1.5%' },
+  W_Hair_3:    { width: '35%', left: '32%', top: '-2.5%' },
+  W_Hair_4:    { width: '43.5%', left: '28.5%', top: '-4.5%' },
+  W_Hair_4_v1: { width: '43.5%', left: '28.5%', top: '-4.5%' },
+  W_Hair_5:    { width: '42%', left: '29%', top: '-1.5%' },
+  W_Hair_5_v1: { width: '42%', left: '29%', top: '-1.5%' },
+  M_Hair_1:    { width: '31%', left: '34%', top: '-4.5%' },
+  M_Hair_2:    { width: '36%', left: '32%', top: '-2.5%' },
+  M_Hair_3:    { width: '34%', left: '33.5%', top: '-4%' },
+  M_Hair_4:    { width: '29%', left: '35.5%', top: '-3%' },
+  M_Hair_4_v1: { width: '29%', left: '35.5%', top: '-3%' },
+  M_Hair_5:    { width: '37.5%', left: '31.5%', top: '-4%' },
+  M_Hair_5_v1: { width: '37.5%', left: '31.5%', top: '-4%' },
 };
 
 const DEFAULT_FACE_POSITIONS: Record<string, { width: string; left: string; top: string }> = {
@@ -301,10 +301,10 @@ const loadPositions = (key: string, defaults: Record<string, { width: string; le
   return { ...defaults };
 };
 
-// Clear old hair positions so updated defaults take effect (v3 = user-adjusted positions)
-if (!localStorage.getItem('mainwrld_hair_pos_v3')) {
+// Clear old hair positions so updated defaults take effect (v4 = Mocha's adjusted positions)
+if (!localStorage.getItem('mainwrld_hair_pos_v4')) {
   localStorage.removeItem('mainwrld_hair_positions');
-  localStorage.setItem('mainwrld_hair_pos_v3', '1');
+  localStorage.setItem('mainwrld_hair_pos_v4', '1');
 }
 
 const HAIR_POSITIONS: Record<string, { width: string; left: string; top: string }> = loadPositions('mainwrld_hair_positions', DEFAULT_HAIR_POSITIONS);
@@ -5486,7 +5486,7 @@ const WriteView = ({ books, user, onPublish, onSaveDraft, onMonetize, onBack, on
               <p className="text-xs text-gray-300 mt-1">Completed works cannot be edited</p>
             </div>
           ) : (
-            <div ref={editorRef} contentEditable spellCheck="true" className="w-full min-h-[400px] bg-transparent border-none outline-none text-base leading-relaxed placeholder:text-gray-200 resize-none no-scrollbar focus:ring-0 rich-editor" onInput={updateWordCount} />
+            <div ref={editorRef} contentEditable spellCheck="true" className="w-full min-h-[400px] bg-transparent border-none outline-none text-base leading-relaxed placeholder:text-gray-200 resize-none no-scrollbar focus:ring-0 rich-editor" style={{ WebkitUserSelect: 'text', userSelect: 'text' }} onInput={updateWordCount} />
           )}
         </div>
       </div>
