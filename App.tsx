@@ -53,9 +53,9 @@ const STRIPE_BOOK_PRICE_ID = ''; // Single book product price ID
 // --- EmailJS Configuration (for welcome emails) ---
 // Sign up at https://www.emailjs.com and create a service + template
 // Template should have variables: {{to_email}}, {{to_name}}, {{username}}
-const EMAILJS_SERVICE_ID = ''; // e.g. 'service_xxx'
-const EMAILJS_TEMPLATE_ID = ''; // e.g. 'template_xxx'
-const EMAILJS_PUBLIC_KEY = ''; // e.g. 'user_xxx'
+const EMAILJS_SERVICE_ID = 'service_kbm17fr';
+const EMAILJS_TEMPLATE_ID = 'template_nb60w6i';
+const EMAILJS_PUBLIC_KEY = 'drZ-kExBHYqajT2vm';
 declare const emailjs: any;
 
 const sendWelcomeEmail = async (email: string, displayName: string, username: string) => {
@@ -805,6 +805,9 @@ const App: React.FC = () => {
 
   // Per-user book ownership and progress (loaded from Firestore user doc)
   const [userBookData, setUserBookData] = useState<Record<string, { ownedBookIds: string[]; purchasedBookIds?: string[]; bookProgress: Record<string, { scrollProgress: number; chapterIndex: number }> }>>({});
+  // Keep a ref in sync so immediate Firestore writes always read the latest data
+  const userBookDataRef = useRef(userBookData);
+  userBookDataRef.current = userBookData;
 
   // Helper to get total likes for a book (handles both old number and new number[] format)
   const getTotalLikes = (likes: number | number[]): number => {
@@ -939,8 +942,9 @@ const App: React.FC = () => {
   ]);
 
   // Flush pending persist immediately when user is leaving the page
+  // Uses visibilitychange + pagehide (reliable on mobile Safari) in addition to beforeunload
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const flushToFirestore = () => {
       if (!firebaseUid || !user.username || !userDataLoaded) return;
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
       const ud = userBookData[user.username];
@@ -962,8 +966,16 @@ const App: React.FC = () => {
       };
       fbService.updateUserProfile(firebaseUid, batchUpdate).catch(() => {});
     };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    const handleVisibilityChange = () => { if (document.visibilityState === 'hidden') flushToFirestore(); };
+    const handlePageHide = () => flushToFirestore();
+    window.addEventListener('beforeunload', flushToFirestore);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      window.removeEventListener('beforeunload', flushToFirestore);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
   });
 
   // Online/offline presence: visibility change + idle timeout
@@ -1673,8 +1685,9 @@ const App: React.FC = () => {
     setUserOwnsBook(bookId);
     showToast('Book saved to your library!', 'bookmark');
     // Immediately persist library change to Firestore (don't rely on debounce)
+    // Use ref to always read latest userBookData (avoids stale closure)
     if (firebaseUid) {
-      const ud = userBookData[user.username] || { ownedBookIds: [], bookProgress: {}, purchasedBookIds: [] };
+      const ud = userBookDataRef.current[user.username] || { ownedBookIds: [], bookProgress: {}, purchasedBookIds: [] };
       const updatedOwned = ud.ownedBookIds.includes(bookId) ? ud.ownedBookIds : [...ud.ownedBookIds, bookId];
       const updatedPurchased = (ud as any).purchasedBookIds || [];
       fbService.updateUserProfile(firebaseUid, {
@@ -1699,9 +1712,9 @@ const App: React.FC = () => {
       return { ...prev, [user.username]: ud };
     });
     showToast('Book removed from your library.', 'bookmark_remove');
-    // Immediately persist removal to Firestore
+    // Immediately persist removal to Firestore (use ref for latest data)
     if (firebaseUid) {
-      const ud = userBookData[user.username] || { ownedBookIds: [], bookProgress: {}, purchasedBookIds: [] };
+      const ud = userBookDataRef.current[user.username] || { ownedBookIds: [], bookProgress: {}, purchasedBookIds: [] };
       fbService.updateUserProfile(firebaseUid, {
         ownedBookIds: ud.ownedBookIds.filter((id: string) => id !== bookId),
         purchasedBookIds: ((ud as any).purchasedBookIds || []).filter((id: string) => id !== bookId),
@@ -5503,7 +5516,7 @@ const WriteView = ({ books, user, onPublish, onSaveDraft, onMonetize, onBack, on
               <p className="text-xs text-gray-300 mt-1">Completed works cannot be edited</p>
             </div>
           ) : (
-            <div ref={editorRef} contentEditable spellCheck="true" className="w-full min-h-[400px] bg-transparent border-none outline-none text-base leading-relaxed placeholder:text-gray-200 resize-none no-scrollbar focus:ring-0 rich-editor" style={{ WebkitUserSelect: 'text', userSelect: 'text' }} onInput={updateWordCount} />
+            <div ref={editorRef} contentEditable="true" inputMode="text" role="textbox" aria-multiline="true" spellCheck="true" className="w-full min-h-[400px] bg-transparent border-none outline-none text-base leading-relaxed placeholder:text-gray-200 resize-none no-scrollbar focus:ring-0 rich-editor" style={{ WebkitUserSelect: 'text', userSelect: 'text', WebkitTouchCallout: 'default', touchAction: 'manipulation' }} onInput={updateWordCount} onTouchEnd={(e) => { e.currentTarget.focus(); }} />
           )}
         </div>
       </div>
