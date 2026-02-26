@@ -1061,9 +1061,19 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Load all registered users from Firestore
+  // Load all registered users from Firestore and populate avatar configs
   useEffect(() => {
-    fbService.getAllUsers().then((users: any[]) => setRegisteredUsers(users)).catch(console.error);
+    fbService.getAllUsers().then((users: any[]) => {
+      setRegisteredUsers(users);
+      // Pre-populate avatar configs for all users so profile views show avatars
+      const configs: Record<string, AvatarConfig> = {};
+      users.forEach((u: any) => {
+        if (u.avatarConfig && u.username) configs[u.username] = u.avatarConfig;
+      });
+      if (Object.keys(configs).length > 0) {
+        setAllAvatarConfigs(prev => ({ ...prev, ...configs }));
+      }
+    }).catch(console.error);
   }, []);
 
   // ===== FIRESTORE REAL-TIME SUBSCRIPTIONS =====
@@ -1171,6 +1181,17 @@ const App: React.FC = () => {
       setUserDataLoaded(true);
     }).catch(console.error);
   }, [firebaseUid, user.username]);
+
+  // Load avatar config for other users when viewing their profile
+  useEffect(() => {
+    if (!selectedProfileUser || selectedProfileUser.username === user.username) return;
+    if (allAvatarConfigs[selectedProfileUser.username]) return; // already loaded
+    fbService.getUserByUsername(selectedProfileUser.username).then((profile: any) => {
+      if (profile?.avatarConfig) {
+        setAllAvatarConfigs(prev => ({ ...prev, [selectedProfileUser.username]: profile.avatarConfig }));
+      }
+    }).catch(console.error);
+  }, [selectedProfileUser]);
 
   // Save likedBooks to Firestore after user interaction
   useEffect(() => {
@@ -1677,23 +1698,21 @@ const App: React.FC = () => {
   const handleSaveToLibrary = (bookId: string) => {
     setBooks(prev => {
       const updated = prev.map(b => b.id === bookId ? { ...b, isOwned: true } : b);
-      // Sync selectedBook if currently looking at this book's details
       const updatedBook = updated.find(b => b.id === bookId);
       if (updatedBook && selectedBook && selectedBook.id === bookId) setSelectedBook(updatedBook);
       return updated;
     });
-    // Compute updated data BEFORE setState so we can write to Firestore immediately
+    // Compute updated data from the ref, then SYNC the ref immediately
+    // so rapid consecutive saves each see the previous save's result
     const currentUd = userBookDataRef.current[user.username] || { ownedBookIds: [], bookProgress: {}, purchasedBookIds: [] };
     const newOwned = currentUd.ownedBookIds.includes(bookId) ? currentUd.ownedBookIds : [...currentUd.ownedBookIds, bookId];
     const currentPurchased = currentUd.purchasedBookIds || [];
     const newPurchased = currentPurchased.includes(bookId) ? currentPurchased : [...currentPurchased, bookId];
-    // Update local state with the pre-computed values
-    setUserBookData(prev => ({
-      ...prev,
-      [user.username]: { ...currentUd, ownedBookIds: newOwned, purchasedBookIds: newPurchased }
-    }));
+    const updatedUd = { ...currentUd, ownedBookIds: newOwned, purchasedBookIds: newPurchased };
+    // Sync the ref RIGHT NOW so the next rapid save sees this book
+    userBookDataRef.current = { ...userBookDataRef.current, [user.username]: updatedUd };
+    setUserBookData(prev => ({ ...prev, [user.username]: updatedUd }));
     showToast('Book saved to your library!', 'bookmark');
-    // Persist to Firestore using the same pre-computed values (no race condition)
     if (firebaseUid) {
       fbService.updateUserProfile(firebaseUid, {
         ownedBookIds: newOwned,
@@ -1705,22 +1724,19 @@ const App: React.FC = () => {
   const handleRemoveFromLibrary = (bookId: string) => {
     setBooks(prev => {
       const updated = prev.map(b => b.id === bookId ? { ...b, isOwned: false } : b);
-      // Sync selectedBook if currently looking at this book's details
       const updatedBook = updated.find(b => b.id === bookId);
       if (updatedBook && selectedBook && selectedBook.id === bookId) setSelectedBook(updatedBook);
       return updated;
     });
-    // Compute updated data BEFORE setState so we can write to Firestore immediately
+    // Compute updated data from the ref, then SYNC the ref immediately
     const currentUd = userBookDataRef.current[user.username] || { ownedBookIds: [], bookProgress: {}, purchasedBookIds: [] };
     const newOwned = currentUd.ownedBookIds.filter((id: string) => id !== bookId);
     const newPurchased = (currentUd.purchasedBookIds || []).filter((id: string) => id !== bookId);
-    // Update local state with the pre-computed values
-    setUserBookData(prev => ({
-      ...prev,
-      [user.username]: { ...currentUd, ownedBookIds: newOwned, purchasedBookIds: newPurchased }
-    }));
+    const updatedUd = { ...currentUd, ownedBookIds: newOwned, purchasedBookIds: newPurchased };
+    // Sync the ref RIGHT NOW so the next rapid remove sees this change
+    userBookDataRef.current = { ...userBookDataRef.current, [user.username]: updatedUd };
+    setUserBookData(prev => ({ ...prev, [user.username]: updatedUd }));
     showToast('Book removed from your library.', 'bookmark_remove');
-    // Persist to Firestore using the same pre-computed values (no race condition)
     if (firebaseUid) {
       fbService.updateUserProfile(firebaseUid, {
         ownedBookIds: newOwned,
@@ -2630,15 +2646,13 @@ const handleSpinWheel = () => {
       setCoupons={setCoupons} 
       onBack={() => setView('self-profile')} 
       onOwnedUpdate={(bookId: string) => {
-        // Compute updated data BEFORE setState for immediate Firestore write
         const currentUd = userBookDataRef.current[user.username] || { ownedBookIds: [], bookProgress: {}, purchasedBookIds: [] };
         const newOwned = currentUd.ownedBookIds.includes(bookId) ? currentUd.ownedBookIds : [...currentUd.ownedBookIds, bookId];
         const currentPurchased = currentUd.purchasedBookIds || [];
         const newPurchased = currentPurchased.includes(bookId) ? currentPurchased : [...currentPurchased, bookId];
-        setUserBookData(prev => ({
-          ...prev,
-          [user.username]: { ...currentUd, ownedBookIds: newOwned, purchasedBookIds: newPurchased }
-        }));
+        const updatedUd = { ...currentUd, ownedBookIds: newOwned, purchasedBookIds: newPurchased };
+        userBookDataRef.current = { ...userBookDataRef.current, [user.username]: updatedUd };
+        setUserBookData(prev => ({ ...prev, [user.username]: updatedUd }));
         setBooks(prev => {
           const updated = prev.map(b =>
             b.id === bookId ? { ...b, isOwned: true } : b
@@ -2648,7 +2662,6 @@ const handleSpinWheel = () => {
           }
           return updated;
         });
-        // Persist to Firestore immediately
         if (firebaseUid) {
           fbService.updateUserProfile(firebaseUid, {
             ownedBookIds: newOwned,
@@ -3128,7 +3141,7 @@ const handleSpinWheel = () => {
           mutualsFallback={MUTUALS}
           chatMessages={chatMessages}
           blockedUsers={blockedUsers}
-          avatarConfigs={registeredUsers.reduce((acc: any, u: any) => { if (u.avatar) acc[u.username] = u.avatar; return acc; }, {})}
+          avatarConfigs={allAvatarConfigs}
           onSelectChat={(username: string) => { setSelectedChatUser(username); setView('chat-conversation'); }}
           onBack={() => setView('home')}
           getAvatarItemPath={getAvatarItemPath}
@@ -3151,7 +3164,7 @@ const handleSpinWheel = () => {
           onSend={(text: string) => selectedChatUser && handleSendMessage(selectedChatUser, text)}
           onBack={() => setView('chat')}
           getAvatarItemPath={getAvatarItemPath}
-          avatarConfig={(registeredUsers.find(u => u.username === selectedChatUser) as any)?.avatar}
+          avatarConfig={selectedChatUser ? (allAvatarConfigs[selectedChatUser] || null) : null}
           isMutual={chatIsMutual}
         />;
 
