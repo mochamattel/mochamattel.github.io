@@ -132,6 +132,7 @@ interface NotificationItem {
   read?: boolean;
   targetId?: string; // e.g., username for profile, bookId for book
   targetChapterIndex?: number; // For comments on specific chapters
+  commentId?: string; // For linking directly to a specific comment
 }
 
 interface ChatMessage {
@@ -721,6 +722,7 @@ const App: React.FC = () => {
   // Users loaded from Firestore
   const [registeredUsers, setRegisteredUsers] = useState<any[]>([]);
   const [activeCommentChapterKey, setActiveCommentChapterKey] = useState<string | null>(null);
+  const [scrollToCommentId, setScrollToCommentId] = useState<string | null>(null);
 
   // Relationships state (Firestore real-time)
   const [relationships, setRelationships] = useState<Relationship[]>([]);
@@ -1134,7 +1136,8 @@ const App: React.FC = () => {
         timestamp: n.timestamp ? new Date(n.timestamp) : new Date(),
         recipient: n.recipient, sender: n.sender, read: n.read,
         targetId: n.targetId,
-        targetChapterIndex: n.targetChapterIndex
+        targetChapterIndex: n.targetChapterIndex,
+        commentId: n.commentId
       })));
     });
     return () => unsub();
@@ -1391,7 +1394,7 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const addNotification = useCallback((title: string, message: string, icon: string, recipient?: string, sender?: string) => {
+  const addNotification = useCallback((title: string, message: string, icon: string, recipient?: string, sender?: string, targetId?: string, targetChapterIndex?: number, commentId?: string) => {
     const newNotif = {
       id: Math.random().toString(36).substr(2, 9),
       title,
@@ -1401,6 +1404,9 @@ const App: React.FC = () => {
       recipient: recipient || user.username,
       sender: sender || user.username,
       read: false,
+      targetId,
+      targetChapterIndex,
+      commentId,
     };
     fbService.addNotificationDoc(newNotif).catch(console.error);
   }, [user.username]);
@@ -1423,12 +1429,16 @@ const App: React.FC = () => {
     console.log('[Notification Click]', n);
     
     // Handle comment notifications - link to comment
-    if (n.title.includes('Comment')) {
+    if (n.title.includes('Comment')){
       if (n.targetId) {
         const targetBook = books.find(b => b.id === n.targetId);
         if (targetBook) {
           setSelectedBook(targetBook);
           setActiveCommentChapterKey(`${n.targetId}_${n.targetChapterIndex || 0}`);
+          // Scroll to the specific comment if commentId is available
+          if (n.commentId) {
+            setScrollToCommentId(n.commentId);
+          }
           setView('comments');
         }
       }
@@ -2295,7 +2305,11 @@ const handleSpinWheel = () => {
     'New Comment',
     `${user.displayName} commented on "${selectedBook.title}"${chapterName}`,
     'chat_bubble',
-    selectedBook.author.username
+    selectedBook.author.username,
+    user.username,
+    selectedBook.id,
+    chapterIndex,
+    newComment.id
   );
 
   showToast("Your comment has been successfully added.",
@@ -2951,7 +2965,7 @@ const handleSpinWheel = () => {
                     <img src={getAvatarItemPath('body', avatarConfig.bodyId)} className="absolute inset-0 w-full h-full object-contain" style={{zIndex:1}} />
                     {avatarConfig.faceId !== 'no_face' && <img src={getAvatarItemPath('face', avatarConfig.faceId)} className="absolute" style={{zIndex:2, ...getFacePosition(avatarConfig.faceId, 0.94)}} />}
                     <img src={getAvatarItemPath('outfit', avatarConfig.outfitId)} className="absolute inset-0 w-full h-full object-contain" style={{zIndex:3}} />
-                    {avatarConfig.hairId !== 'none' && <img src={getAvatarItemPath('hair', avatarConfig.hairId)} className="absolute" style={{zIndex:4, ...getHairPosition(avatarConfig.hairId, 0.918, 0.35)}} />}
+                    {avatarConfig.hairId !== 'none' && <img src={getAvatarItemPath('hair', avatarConfig.hairId)} className="absolute" style={{zIndex:4, ...getHairPosition(avatarConfig.hairId, 0.916, 0.31)}} />}
                   </div>
                 </div>
               ) : (
@@ -3220,12 +3234,14 @@ const handleSpinWheel = () => {
               return true;
             })}
             onPost={postComment}
-            onBack={() => setView('reading')}
+            onBack={() => { setScrollToCommentId(null); setView('reading'); }}
             onReport={(id: string) => handleReport('Comment', id)}
             onLikeComment={handleLikeComment}
             currentUsername={user.username}
             chapters={selectedBook?.chapters || []}
             initialChapterIndex={readingChapterIndex}
+            scrollToCommentId={scrollToCommentId}
+            onScrolledTo={() => setScrollToCommentId(null)}
         />;
 
       case 'admin-dashboard':
@@ -3747,7 +3763,7 @@ const OtherProfileView = ({ user, books, onBack, onBookSelect, onAdmire, onBlock
               <img src={getAvatarItemPath('body', avatarConfig.bodyId)} className="absolute inset-0 w-full h-full object-contain" style={{zIndex:1}} />
               {avatarConfig.faceId !== 'no_face' && <img src={getAvatarItemPath('face', avatarConfig.faceId)} className="absolute" style={{zIndex:2, ...getFacePosition(avatarConfig.faceId, 0.94)}} />}
               <img src={getAvatarItemPath('outfit', avatarConfig.outfitId)} className="absolute inset-0 w-full h-full object-contain" style={{zIndex:3}} />
-              {avatarConfig.hairId !== 'none' && <img src={getAvatarItemPath('hair', avatarConfig.hairId)} className="absolute" style={{zIndex:4, ...getHairPosition(avatarConfig.hairId, 0.918, 0.35)}} />}
+              {avatarConfig.hairId !== 'none' && <img src={getAvatarItemPath('hair', avatarConfig.hairId)} className="absolute" style={{zIndex:4, ...getHairPosition(avatarConfig.hairId, 0.918, 0.33)}} />}
             </div>
           </div>
         ) : (
@@ -5221,15 +5237,32 @@ const AdminDashboard = ({
   );
 };
 
-const CommentsView = ({ comments, onBack, onPost, onReport, onLikeComment, currentUsername = '', chapters = [], initialChapterIndex = 0 }: any) => {
+const CommentsView = ({ comments, onBack, onPost, onReport, onLikeComment, currentUsername = '', chapters = [], initialChapterIndex = 0, scrollToCommentId, onScrolledTo }: any) => {
   const [newText, setNewText] = useState('');
   const [activeChapter, setActiveChapter] = useState<number>(initialChapterIndex);
+  const commentsContainerRef = useRef<HTMLDivElement>(null);
 
   // Filter comments for the selected chapter
   // Comments without chapterIndex (legacy) are treated as belonging to chapter 0
   const filteredComments = chapters.length > 0
     ? comments.filter((c: any) => (c.chapterIndex ?? 0) === activeChapter)
     : comments;
+
+  // Scroll to a specific comment when scrollToCommentId is set
+  useEffect(() => {
+    if (scrollToCommentId && commentsContainerRef.current) {
+      const commentElement = document.getElementById(`comment-${scrollToCommentId}`);
+      if (commentElement) {
+        commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Highlight the comment briefly
+        commentElement.classList.add('ring-2', 'ring-accent');
+        setTimeout(() => {
+          commentElement.classList.remove('ring-2', 'ring-accent');
+          onScrolledTo && onScrolledTo();
+        }, 2000);
+      }
+    }
+  }, [scrollToCommentId, onScrolledTo]);
 
   const handlePost = () => {
     if (newText.trim()) {
@@ -5248,11 +5281,11 @@ const CommentsView = ({ comments, onBack, onPost, onReport, onLikeComment, curre
         <button onClick={onBack} className="w-10 h-10 text-gray-300 transition-transform active:scale-90"><span className="material-icons-round">close</span></button>
       </header>
 
-      <div className="space-y-6 pb-32">
+      <div className="space-y-6 pb-32" ref={commentsContainerRef}>
         {filteredComments.map((c: any) => {
           const hasLiked = (c.likedBy || []).includes(currentUsername);
           return (
-          <div key={c.id} className="p-5 bg-gray-50 rounded-3xl space-y-3 border border-gray-100 group relative">
+          <div key={c.id} id={`comment-${c.id}`} className="p-5 bg-gray-50 rounded-3xl space-y-3 border border-gray-100 group relative transition-all">
             <div className="flex justify-between">
               <span className="text-xs font-bold text-accent">{c.author}</span>
               <span className="text-[9px] font-bold text-gray-300 uppercase">{c.timestamp}</span>
@@ -5363,7 +5396,7 @@ const ChatListView = ({ currentUsername, relationships, registeredUsers, mutuals
               <div className="relative flex-shrink-0">
                 <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xl font-bold overflow-hidden">
                   {avatarConfigs[conv.user.username] ? (
-                    <img src={getAvatarItemPath('body', avatarConfigs[conv.user.username].bodyId)} className="w-full h-full object-cover" />
+                    <img src={getAvatarItemPath('Face', avatarConfigs[conv.user.username].faceId)} className="w-full h-full object-cover" />
                   ) : (
                     <span className="material-icons-round text-2xl">person</span>
                   )}
@@ -5441,7 +5474,14 @@ const ChatConversationView = ({ currentUsername, currentDisplayName, targetUsern
         <div className="relative">
           <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
             {avatarConfig ? (
-              <img src={getAvatarItemPath('body', avatarConfig.bodyId)} className="w-full h-full object-cover" />
+              <div className="relative w-full h-full">
+                <div className="absolute left-1/2" style={{ width: '70px', height: '97px', transform: 'translateX(-50%) scale(1)', transformOrigin: 'top center', top: '8%' }}>
+                  <img src={getAvatarItemPath('body', avatarConfig.bodyId)} className="absolute inset-0 w-full h-full object-contain" style={{zIndex:1}} />
+                  {avatarConfig.faceId !== 'no_face' && <img src={getAvatarItemPath('face', avatarConfig.faceId)} className="absolute" style={{zIndex:2, ...getFacePosition(avatarConfig.faceId, 0.94)}} />}
+                  <img src={getAvatarItemPath('outfit', avatarConfig.outfitId)} className="absolute inset-0 w-full h-full object-contain" style={{zIndex:3}} />
+                  {avatarConfig.hairId !== 'none' && <img src={getAvatarItemPath('hair', avatarConfig.hairId)} className="absolute" style={{zIndex:4, ...getHairPosition(avatarConfig.hairId, 0.918, 0.33)}} />}
+                </div>
+              </div>
             ) : (
               <span className="material-icons-round text-gray-400">person</span>
             )}
