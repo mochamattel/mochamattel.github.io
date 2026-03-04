@@ -6268,9 +6268,9 @@ const CustomizationView = ({ user, setUser, onBack, avatarConfig, setAvatarConfi
               hairShift={1}
               faceStyleOverride={adjustMode && adjustTarget === 'face' ? { width: `${adj.width}%`, left: `${adj.left}%`, top: `${adj.top}%` } : undefined}
               hairStyleOverride={adjustMode && adjustTarget === 'hair' ? { width: `${adj.width}%`, left: `${adj.left}%`, top: `${adj.top}%` } : (() => {
-                const pos = getHairPosition(localConfig.hairId, 0.91, -0.4);
+                const pos = getHairPosition(localConfig.hairId, 0.925, -0.08);
                 const top = parseFloat(pos.top);
-                return { ...pos, top: `${(top + 1.05).toFixed(3)}%` };
+                return { ...pos, top: `${(top - 0.24).toFixed(3)}%` };
               })()}
             />
           </div>
