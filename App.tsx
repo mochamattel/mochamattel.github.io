@@ -4711,7 +4711,24 @@ const ReadingView = ({ currentUser, book, initialScrollProgress, initialChapterI
           </div>
         </div>
       )}
-
+      {!settings.scrollMode && (
+        <>
+          <button 
+            onClick={handleBackward}
+            className={`fixed left-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full backdrop-blur-md border flex items-center justify-center z-[150] active:scale-90 transition-all shadow-md opacity-80 hover:opacity-100 ${settings.inverted ? 'bg-white/20 border-white/40 text-white' : 'bg-white/60 border-white/80 text-black'}`}
+            aria-label="Previous Page"
+          >
+            <span className="material-icons-round">chevron_left</span>
+          </button>
+          <button 
+            onClick={handleForward}
+            className={`fixed right-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full backdrop-blur-md border flex items-center justify-center z-[150] active:scale-90 transition-all shadow-md opacity-80 hover:opacity-100 ${settings.inverted ? 'bg-white/20 border-white/40 text-white' : 'bg-white/60 border-white/80 text-black'}`}
+            aria-label="Next Page"
+          >
+            <span className="material-icons-round">chevron_right</span>
+          </button>
+        </>
+      )}
       {settings.scrollMode ? (
           <div
             ref={containerRef}
@@ -4770,7 +4787,7 @@ const ReadingView = ({ currentUser, book, initialScrollProgress, initialChapterI
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
               >
-                  <div className={`page-flip-content reader-content h-full p-8 pt-10 transition-all duration-300 ${isBlurred ? 'blur-xl' : ''}`} style={{ fontSize: `${settings.fontSize}px`, columnWidth: 'calc(100vw - 64px)', columnGap: '64px' }}>
+                  <div className={`page-flip-content reader-content h-full p-14 pt-10 relative z-10" ${isBlurred ? 'blur-xl' : ''}`} style={{ fontSize: `${settings.fontSize}px`, columnWidth: 'calc(100vw - 112px)', columnGap: '112px' }}>
                       <h1 className="text-3xl font-bold mb-12 pt-10">{currentChapter.title}</h1>
                       <div className="leading-relaxed whitespace-pre-line text-justify">{renderFormattedContent(currentChapter.content)}</div>
                       <ChapterAdBanner isPremium={currentUser?.isPremium} inverted={settings.inverted} />
