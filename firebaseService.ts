@@ -56,7 +56,6 @@ export const signUp = async (
     strikes: 0,
     isOnline: true,
     activity: 'Idle',
-    favoriteBookIds: [],
     isPremium: false,
     premiumSince: null,
     createdAt: serverTimestamp()
@@ -148,19 +147,6 @@ export const removeBookFromLibrary = async (uid: string, bookId: string) => {
   await updateDoc(doc(db, 'users', uid), {
     ownedBookIds: arrayRemove(bookId),
     purchasedBookIds: arrayRemove(bookId),
-  });
-};
-
-// Atomic array operations for favorites (order-independent, no race conditions)
-export const addBookToFavorites = async (uid: string, bookId: string) => {
-  await updateDoc(doc(db, 'users', uid), {
-    favoriteBookIds: arrayUnion(bookId),
-  });
-};
-
-export const removeBookFromFavorites = async (uid: string, bookId: string) => {
-  await updateDoc(doc(db, 'users', uid), {
-    favoriteBookIds: arrayRemove(bookId),
   });
 };
 

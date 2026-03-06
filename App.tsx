@@ -4402,7 +4402,6 @@ const ReadingView = ({ currentUser, book, initialScrollProgress, initialChapterI
   const [showOptions, setShowOptions] = useState(false);
   const [currentChapterIdx, setCurrentChapterIdx] = useState(initialChapterIndex || 0);
   const [localScrollProgress, setLocalScrollProgress] = useState(initialScrollProgress || 0);
-  const [isBlurred, setIsBlurred] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const pageFlipRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef(0);
@@ -4412,54 +4411,6 @@ const ReadingView = ({ currentUser, book, initialScrollProgress, initialChapterI
     chapterIndex: initialChapterIndex || 0,
     exact: initialExactPosition || {},
   });
-
-  // Blur content when window loses focus or visibility (prevents screenshots)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      setIsBlurred(document.hidden);
-    };
-
-    const handleBlur = () => {
-      setIsBlurred(true);
-    };
-
-    const handleFocus = () => {
-      setIsBlurred(false);
-    };
-
-    // Listen for visibility changes (tab switching, minimizing)
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
-
-    // Mobile screenshot detection (Android/iOS)
-    // Detect power + volume button combinations and screenshot gestures
-    let screenshotAttemptTimer: NodeJS.Timeout;
-    const handleScreenshotAttempt = (e: KeyboardEvent) => {
-      // Android: Power + Volume Down
-      // iOS: Power + Volume Up or Power + Home
-      // These trigger visibility changes, so we blur proactively
-      if (e.key === 'AudioVolumeDown' || e.key === 'AudioVolumeUp') {
-        setIsBlurred(true);
-        clearTimeout(screenshotAttemptTimer);
-        screenshotAttemptTimer = setTimeout(() => {
-          if (!document.hidden && document.hasFocus()) {
-            setIsBlurred(false);
-          }
-        }, 1500);
-      }
-    };
-
-    window.addEventListener('keydown', handleScreenshotAttempt as any);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('keydown', handleScreenshotAttempt as any);
-      clearTimeout(screenshotAttemptTimer);
-    };
-  }, []);
 
   // Prevent copy/paste and screenshots in reading view
   useEffect(() => {
@@ -4719,7 +4670,7 @@ const ReadingView = ({ currentUser, book, initialScrollProgress, initialChapterI
             className="flex-1 overflow-y-auto no-scrollbar p-8 pt-10"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            <div className={`max-w-2xl mx-auto space-y-10 mb-20 reader-content select-none transition-all duration-300 ${isBlurred ? 'blur-xl' : 'blur-none'}`} style={{ fontSize: `${settings.fontSize}px`, WebkitUserSelect: 'none', userSelect: 'none' }}>
+            <div className="max-w-2xl mx-auto space-y-10 mb-20 reader-content select-none" style={{ fontSize: `${settings.fontSize}px`, WebkitUserSelect: 'none', userSelect: 'none' }}>
                 {!canAccessAll && (
                   <div className="p-4 mb-10 bg-accent/10 border border-accent/20 rounded-2xl text-center">
                     <p className="text-[10px] font-bold text-accent uppercase tracking-[0.2em]">Preview Mode</p>
@@ -4770,7 +4721,7 @@ const ReadingView = ({ currentUser, book, initialScrollProgress, initialChapterI
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
               >
-                  <div className={`page-flip-content reader-content h-full p-8 pt-10 transition-all duration-300 ${isBlurred ? 'blur-xl' : 'blur-none'}`} style={{ fontSize: `${settings.fontSize}px`, columnWidth: 'calc(100vw - 64px)', columnGap: '64px' }}>
+                  <div className="page-flip-content reader-content h-full p-8 pt-10" style={{ fontSize: `${settings.fontSize}px`, columnWidth: 'calc(100vw - 64px)', columnGap: '64px' }}>
                       <h1 className="text-3xl font-bold mb-12 pt-10">{currentChapter.title}</h1>
                       <div className="leading-relaxed whitespace-pre-line text-justify">{renderFormattedContent(currentChapter.content)}</div>
                       <ChapterAdBanner isPremium={currentUser?.isPremium} inverted={settings.inverted} />
